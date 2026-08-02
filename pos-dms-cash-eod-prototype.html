@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>POS / DMS Cash EOD Prototype</title>
+  <style>
+    :root {
+      --blue: #2d99ff;
+      --blue-dark: #1677ff;
+      --green: #33a36b;
+      --red: #e57373;
+      --orange: #f59e0b;
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --soft: #f5f5f5;
+      --dms-bg: #f3f5f8;
+      --side: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      background: #eef2f7;
+    }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+    .app-switch {
+      height: 54px;
+      padding: 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { font-weight: 800; letter-spacing: .2px; }
+    .switch-actions { display: flex; gap: 8px; }
+    .switch-btn, .btn, .icon-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 9px 13px;
+      font-weight: 600;
+    }
+    .switch-btn.active, .btn.primary {
+      border-color: var(--blue-dark);
+      background: var(--blue-dark);
+      color: #fff;
+    }
+    .btn.danger { border-color: #ffd5d5; color: var(--red); background: #fff; }
+    .btn.text { border-color: transparent; color: var(--blue-dark); background: transparent; padding: 0; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #eef2ff;
+      color: #3554d1;
+    }
+    .tag.green { background: #e9f8f0; color: #168052; }
+    .tag.red { background: #fff0f0; color: #c24141; }
+    .tag.orange { background: #fff7e6; color: #b45309; }
+    .tag.gray { background: #f3f4f6; color: #4b5563; }
+
+    /* POS app */
+    #posApp {
+      min-height: calc(100vh - 54px);
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: #dfe6ef;
+    }
+    .tablet {
+      width: min(1120px, 100%);
+      height: min(760px, calc(100vh - 94px));
+      min-height: 650px;
+      display: grid;
+      grid-template-columns: 78px minmax(0, 1fr);
+      overflow: hidden;
+      border: 12px solid #111827;
+      border-radius: 22px;
+      background: #fff;
+      box-shadow: 0 28px 70px rgba(17, 24, 39, .22);
+    }
+    .pos-nav {
+      background: #fff;
+      border-right: 1px solid var(--line);
+      padding: 14px 8px;
+      display: grid;
+      grid-template-rows: repeat(6, 64px) 1fr 64px;
+      gap: 4px;
+    }
+    .pos-nav button {
+      border: 0;
+      background: transparent;
+      border-radius: 8px;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      gap: 3px;
+      font-size: 11px;
+    }
+    .pos-nav button.active { background: #eef7ff; color: var(--blue-dark); font-weight: 800; }
+    .pos-nav .glyph { font-size: 22px; line-height: 1; }
+    .pos-screen {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 52px minmax(0, 1fr);
+      background: var(--soft);
+    }
+    .pos-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .pos-title { font-weight: 800; }
+    .pos-user { color: var(--muted); font-size: 13px; }
+    .pos-page {
+      display: none;
+      min-height: 0;
+      height: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      background: #fff;
+      grid-template-rows: minmax(0, 1fr) auto;
+    }
+    .pos-page.active { display: grid; }
+    .pos-page.gray { background: var(--soft); }
+    .pos-content {
+      min-height: 0;
+      overflow: auto;
+      padding: 16px;
+    }
+    .pos-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .pos-card-head {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 800;
+    }
+    .pos-card-body { padding: 14px; }
+    .row-card {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .row-card .moneybox {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      background: #f4f7fb;
+    }
+    .row-card .grow, .grow { flex: 1; min-width: 0; }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .metric {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .metric label, .field label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .metric strong { font-size: 24px; }
+    .payment-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) 330px;
+      gap: 12px;
+    }
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .product {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+    .product .img {
+      height: 88px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #e8eef7, #f9fafb);
+      display: grid;
+      place-items: center;
+      color: #9ca3af;
+      font-weight: 800;
+    }
+    .cart-line {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .pos-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+      min-height: 62px;
+    }
+    .field { margin-bottom: 16px; }
+    .input, .textarea, .select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      padding: 11px 12px;
+    }
+    .textarea { min-height: 90px; resize: vertical; }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .summary-row span:first-child { color: var(--muted); }
+    .cash-stepper {
+      display: grid;
+      grid-template-columns: 40px minmax(42px, 1fr) 40px;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0 10px;
+    }
+    .step-btn {
+      width: 40px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .step-count {
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f9fafb;
+      font-weight: 800;
+    }
+    .log-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 13px 16px;
+      border-bottom: 1px solid #f1f1f1;
+    }
+    .log-row small { display: block; color: var(--muted); margin-top: 4px; }
+    .auth-box {
+      border: 1px solid #ffd7d7;
+      background: #fff7f7;
+      border-radius: 8px;
+      padding: 14px;
+      margin: 12px 0;
+    }
+
+    /* DMS */
+    #dmsApp {
+      min-height: calc(100vh - 54px);
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      background: var(--dms-bg);
+    }
+    .dms-side {
+      background: var(--side);
+      color: #d1d5db;
+      padding: 14px 10px;
+    }
+    .dms-logo {
+      color: #fff;
+      font-weight: 900;
+      padding: 10px 12px 18px;
+    }
+    .menu-title {
+      padding: 12px;
+      color: #9ca3af;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .dms-menu button {
+      width: 100%;
+      border: 0;
+      border-radius: 6px;
+      padding: 11px 12px;
+      color: #d1d5db;
+      background: transparent;
+      text-align: left;
+      margin-bottom: 4px;
+    }
+    .dms-menu button.active, .dms-menu button:hover {
+      background: #374151;
+      color: #fff;
+    }
+    .dms-main {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: 52px 40px minmax(0, 1fr);
+    }
+    .dms-header {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+    }
+    .dms-tabs {
+      display: flex;
+      align-items: end;
+      gap: 6px;
+      padding: 0 12px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .dms-tab {
+      height: 32px;
+      border: 1px solid var(--line);
+      border-bottom: 0;
+      background: #fafafa;
+      border-radius: 6px 6px 0 0;
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .dms-tab.active {
+      background: var(--dms-bg);
+      color: var(--blue-dark);
+      font-weight: 700;
+    }
+    .dms-view {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px;
+      display: none;
+    }
+    .dms-view.active { display: block; }
+    .page-container {
+      display: grid;
+      gap: 12px;
+    }
+    .search-box, .operate-box, .table-box, .form-box {
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      padding: 14px;
+    }
+    .search-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr)) auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .operate-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 10px;
+      text-align: left;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    th { color: #606266; background: #fafafa; font-weight: 700; }
+    td.right, th.right { text-align: right; }
+    .link { color: var(--blue-dark); font-weight: 700; cursor: pointer; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px 18px;
+    }
+    .form-section-title {
+      font-weight: 800;
+      margin: 8px 0 14px;
+      padding-left: 8px;
+      border-left: 3px solid var(--blue-dark);
+    }
+    .drawer {
+      position: fixed;
+      inset: 54px 0 0 auto;
+      width: min(640px, 92vw);
+      background: #fff;
+      border-left: 1px solid var(--line);
+      box-shadow: -18px 0 50px rgba(0,0,0,.12);
+      transform: translateX(102%);
+      transition: transform .2s ease;
+      z-index: 30;
+      display: grid;
+      grid-template-rows: 54px minmax(0, 1fr) 62px;
+    }
+    .drawer.show { transform: translateX(0); }
+    .drawer-head, .drawer-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .drawer-foot {
+      border-top: 1px solid var(--line);
+      border-bottom: 0;
+      justify-content: flex-end;
+    }
+    .drawer-body { overflow: auto; padding: 16px; }
+    .modal-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, .42);
+      display: none;
+      place-items: center;
+      z-index: 40;
+    }
+    .modal-mask.show { display: grid; }
+    .modal-card {
+      width: min(760px, 92vw);
+      max-height: 86vh;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 54px minmax(0, 1fr) 62px;
+    }
+    .modal-head, .modal-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-foot { border-top: 1px solid var(--line); border-bottom: 0; justify-content: flex-end; }
+    .modal-body { overflow: auto; padding: 16px; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 26px;
+      transform: translateX(-50%);
+      background: #111827;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+      z-index: 60;
+    }
+    .toast.show { opacity: 1; }
+    @media (max-width: 900px) {
+      #dmsApp { grid-template-columns: 1fr; }
+      .dms-side { display: none; }
+      .tablet { grid-template-columns: 64px minmax(0, 1fr); min-height: 620px; }
+      .payment-layout, .metric-grid, .form-grid, .search-grid { grid-template-columns: 1fr; }
+      .product-grid { grid-template-columns: 1fr 1fr; }
+      .tablet { height: calc(100vh - 74px); min-height: 560px; border-width: 8px; }
+      .pos-nav { grid-template-rows: 58px 1fr; }
+      .pos-nav button { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-switch">
+    <div class="brand">VIVAIA POS / DMS Cash EOD</div>
+    <div class="switch-actions">
+      <button class="switch-btn active" data-app="posApp">POS App</button>
+      <button class="switch-btn" data-app="dmsApp">DMS Backend</button>
+    </div>
+  </header>
+
+  <main id="posApp">
+    <div class="tablet">
+      <nav class="pos-nav">
+        <button class="active" data-pos-nav="pos-business"><span class="glyph">◫</span><span>Business</span></button>
+        <span></span>
+      </nav>
+      <section class="pos-screen">
+        <div class="pos-topbar">
+          <button class="icon-btn hidden" id="posBackBtn">←</button>
+          <div class="pos-title" id="posTitle">Business</div>
+          <div class="pos-user">SG018 · Cashier Amy</div>
+        </div>
+
+        <div class="pos-page active gray" id="pos-business">
+          <div class="pos-content">
+            <div class="metric-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+              <div class="metric"><label>Business Date</label><strong style="font-size:18px">2026-07-31</strong></div>
+              <div class="metric"><label>Store Status</label><strong id="businessStoreStatus" style="font-size:18px">Not Opened</strong></div>
+              <div class="metric">
+                <label>Store Cash Inventory</label>
+                <strong id="businessCashInventory">••••••</strong>
+                <small id="inventoryHint" style="display:block;color:var(--muted);margin-top:6px">PIN required</small>
+                <button class="btn" id="verifyInventoryBtn" style="margin-top:10px">Verify PIN</button>
+              </div>
+            </div>
+            <button class="row-card" data-pos-route="pos-sod">
+              <span class="moneybox">$</span>
+              <span class="grow"><b>Start of Day</b><small style="display:block;color:var(--muted);margin-top:3px">Count opening cash and unlock trading</small></span>
+              <span class="tag orange" id="sodStatusTag">Opening Required</span><span>›</span>
+            </button>
+            <button class="row-card" id="homeEodButton" data-pos-route="pos-eod-stripe">
+              <span class="moneybox">✓</span>
+              <span class="grow"><b>End of Day</b><small style="display:block;color:var(--muted);margin-top:3px">Review Stripe, other payments, cash count, refunds and closing report</small></span>
+              <span class="tag gray" id="eodStatusTag">Unavailable</span><span>›</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pos-page" id="pos-sod">
+          <div class="pos-content">
+            <div class="metric-grid">
+              <div class="metric"><label>Configured Float Amount</label><strong>$500.00</strong></div>
+              <div class="metric"><label>Counted Opening Cash</label><strong id="openingCounted">$520.00</strong></div>
+              <div class="metric"><label>Difference</label><strong style="color:var(--orange)">$20.00</strong></div>
+              <div class="metric"><label>Store Cash Inventory</label><strong>$3,486.40</strong></div>
+            </div>
+            <div class="pos-card">
+              <div class="pos-card-head"><span>Opening Cash Count</span><span class="tag orange">Manager Authorization</span></div>
+              <div class="pos-card-body">
+                <div class="product-grid">
+                  <div class="metric"><label>100 Notes</label><input class="input" value="2"><strong>$200.00</strong></div>
+                  <div class="metric"><label>50 Notes</label><input class="input" value="2"><strong>$100.00</strong></div>
+                  <div class="metric"><label>10 Notes</label><input class="input" value="12"><strong>$120.00</strong></div>
+                  <div class="metric"><label>Coins</label><input class="input" value="100"><strong>$100.00</strong></div>
+                </div>
+                <div class="field" style="margin-top:14px"><label>Opening cash difference reason</label><textarea class="textarea">Cashier counted one extra $20 note; manager approved before trading.</textarea></div>
+                <div class="field"><label>Manager PIN</label><input class="input" value="1024"></div>
+              </div>
+            </div>
+          </div>
+          <div class="pos-bottom"><button class="btn" data-pos-route="pos-business">Cancel</button><button class="btn primary" id="confirmSodBtn">Open for Trading</button></div>
+        </div>
+
+        <div class="pos-page" id="pos-eod-stripe">
+          <div class="pos-content">
+            <div class="metric-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+              <div class="metric"><label>POS Orders Expected</label><strong>$12,804.20</strong></div>
+              <div class="metric"><label>Stripe Settlement</label><strong>$12,816.20</strong></div>
+              <div class="metric"><label>Difference</label><strong style="color:var(--orange)">$12.00</strong></div>
+            </div>
+            <div class="pos-card">
+              <div class="pos-card-head"><span>Stripe Review</span><span class="tag orange" id="stripeConfirmTag">Pending Confirm</span></div>
+              <div class="pos-card-body" style="padding:0">
+                <table>
+                  <thead><tr><th>Stripe No.</th><th>POS order No</th><th class="right">POS Amount</th><th class="right">Stripe Amount</th><th>Match Status</th><th>Review</th></tr></thead>
+                  <tbody>
+                    <tr><td>pi_3Q9SG018</td><td>SO-20260731-090</td><td class="right">$320.00</td><td class="right">$640.00</td><td><span class="tag red">Mismatch</span></td><td><button class="btn text" data-pos-route="pos-order-detail">View Detail</button></td></tr>
+                    <tr><td>pi_3Q9SG019</td><td>SO-20260731-091</td><td class="right">$228.00</td><td class="right">$228.00</td><td><span class="tag green">Matched</span></td><td><button class="btn text" data-pos-route="pos-order-detail">View Detail</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="pos-bottom"><button class="btn" data-pos-route="pos-business">Previous</button><button class="btn" data-confirm-target="stripeConfirmTag">Mark Confirmed</button><button class="btn primary" data-pos-route="pos-eod-other">Next</button></div>
+        </div>
+
+        <div class="pos-page" id="pos-eod-other">
+          <div class="pos-content">
+            <div class="pos-card">
+              <div class="pos-card-head"><span>Other Payment Reconciliation</span><span class="tag orange" id="otherConfirmTag">Pending Confirm</span></div>
+              <div class="pos-card-body" style="padding:0">
+                <table>
+                  <thead><tr><th>Payment Type</th><th>Transaction Count</th><th class="right">Amount</th><th>Review Status</th></tr></thead>
+                  <tbody>
+                    <tr><td>Gift Card</td><td>6</td><td class="right">$840.00</td><td><span class="tag green">Reviewed</span></td></tr>
+                    <tr><td>Offline Credit Card</td><td>2</td><td class="right">$412.10</td><td><span class="tag orange">Pending Review</span></td></tr>
+                    <tr><td>NETS</td><td>3</td><td class="right">$0.00</td><td><span class="tag green">Reviewed</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="pos-bottom"><button class="btn" data-pos-route="pos-eod-stripe">Previous</button><button class="btn" data-confirm-target="otherConfirmTag">Mark Confirmed</button><button class="btn primary" data-pos-route="pos-eod-cash-count">Next</button></div>
+        </div>
+
+        <div class="pos-page" id="pos-eod-cash-count">
+          <div class="pos-content">
+            <div class="metric-grid">
+              <div class="metric"><label>Opening Cash Amount</label><strong>$520.00</strong></div>
+              <div class="metric"><label>Daily Cash Book Amount</label><strong>$1,786.40</strong></div>
+              <div class="metric"><label>Counted Cash Balance</label><strong id="countedCashBalance">$1,780.00</strong></div>
+              <div class="metric"><label>Variance</label><strong id="cashVariance" style="color:var(--orange)">-$6.40</strong></div>
+            </div>
+            <div class="pos-card">
+              <div class="pos-card-head"><span>Cash Count</span><span class="tag orange" id="cashConfirmTag">Pending Confirm</span></div>
+              <div class="pos-card-body">
+                <div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn" id="showCashTxnBtn">Cash Transaction Log</button></div>
+                <div class="product-grid">
+                  <div class="metric cash-denom" data-denom="100"><label>100 Notes</label><div class="cash-stepper"><button class="step-btn" data-step="-1">-</button><span class="step-count">12</span><button class="step-btn" data-step="1">+</button></div><strong>$1,200.00</strong></div>
+                  <div class="metric cash-denom" data-denom="50"><label>50 Notes</label><div class="cash-stepper"><button class="step-btn" data-step="-1">-</button><span class="step-count">8</span><button class="step-btn" data-step="1">+</button></div><strong>$400.00</strong></div>
+                  <div class="metric cash-denom" data-denom="10"><label>10 Notes</label><div class="cash-stepper"><button class="step-btn" data-step="-1">-</button><span class="step-count">10</span><button class="step-btn" data-step="1">+</button></div><strong>$100.00</strong></div>
+                  <div class="metric cash-denom" data-denom="5"><label>5 Notes</label><div class="cash-stepper"><button class="step-btn" data-step="-1">-</button><span class="step-count">12</span><button class="step-btn" data-step="1">+</button></div><strong>$60.00</strong></div>
+                  <div class="metric cash-denom" data-denom="1"><label>Coins</label><div class="cash-stepper"><button class="step-btn" data-step="-1">-</button><span class="step-count">20</span><button class="step-btn" data-step="1">+</button></div><strong>$20.00</strong></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pos-bottom"><button class="btn" data-pos-route="pos-eod-other">Previous</button><button class="btn" data-confirm-target="cashConfirmTag">Mark Confirmed</button><button class="btn primary" data-pos-route="pos-eod-refunds">Next</button></div>
+        </div>
+
+        <div class="pos-page" id="pos-eod-refunds">
+          <div class="pos-content">
+            <div class="metric-grid">
+              <div class="metric"><label>After-sale Total</label><strong>$214.00</strong></div>
+              <div class="metric"><label>Refund Count</label><strong>3</strong></div>
+              <div class="metric"><label>Cash Refund</label><strong>$48.00</strong></div>
+              <div class="metric"><label>Stripe Refund</label><strong>$86.00</strong></div>
+            </div>
+            <div class="pos-card">
+              <div class="pos-card-head"><span>After-sale Details</span><span class="tag orange" id="refundConfirmTag">Pending Confirm</span></div>
+              <div class="pos-card-body" style="padding:0">
+                <table>
+                  <thead><tr><th>POS Serial No.</th><th>Channel</th><th class="right">Amount</th><th>Review Status</th></tr></thead>
+                  <tbody>
+                    <tr><td>POS-20260731-00031</td><td>Stripe</td><td class="right">$86.00</td><td><span class="tag orange">Pending Review</span></td></tr>
+                    <tr><td>POS-20260731-00044</td><td>Cash</td><td class="right">$48.00</td><td><span class="tag orange">Pending Review</span></td></tr>
+                    <tr><td>POS-20260731-00058</td><td>Gift Card</td><td class="right">$80.00</td><td><span class="tag green">Reviewed</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="pos-bottom"><button class="btn" data-pos-route="pos-eod-cash-count">Previous</button><button class="btn" data-confirm-target="refundConfirmTag">Mark Confirmed</button><button class="btn primary" data-pos-route="pos-eod-closing">Next</button></div>
+        </div>
+
+        <div class="pos-page" id="pos-eod-closing">
+          <div class="pos-content">
+            <div class="pos-card">
+              <div class="pos-card-head"><span>Closing Report</span><button class="btn">Print</button></div>
+              <div class="pos-card-body" style="padding:0">
+                <table>
+                  <thead><tr><th>Item</th><th class="right">Amount</th><th class="right">Difference</th></tr></thead>
+                  <tbody>
+                    <tr><td>Total Sales</td><td class="right">$18,462.70</td><td class="right">-</td></tr>
+                    <tr><td>Stripe</td><td class="right">$12,804.20</td><td class="right" style="color:var(--orange)">$12.00</td></tr>
+                    <tr><td>Other Payments</td><td class="right">$1,252.10</td><td class="right">$0.00</td></tr>
+                    <tr><td>Opening Cash Amount</td><td class="right">$520.00</td><td class="right">$20.00</td></tr>
+                    <tr><td>Daily Cash Book Amount</td><td class="right">$1,786.40</td><td class="right" style="color:var(--orange)">$12.40</td></tr>
+                    <tr><td>Counted Cash Balance</td><td class="right">$1,780.00</td><td class="right" style="color:var(--orange)">-$6.40</td></tr>
+                    <tr><td>Variance</td><td class="right">-$6.40</td><td class="right">-</td></tr>
+                    <tr><td>Float Amount</td><td class="right">$500.00</td><td class="right">-</td></tr>
+                    <tr><td>Daily Deposit Amount</td><td class="right">$1,286.40</td><td class="right">-</td></tr>
+                    <tr><td>After-sale Total</td><td class="right">$214.00</td><td class="right">$0.00</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="pos-card">
+              <div class="pos-card-head">Close Operators</div>
+              <div class="pos-card-body" style="padding:0">
+                <div class="summary-row"><span>Opened By</span><b>Amy</b></div>
+                <div class="summary-row"><span>Opened At</span><b>2026-07-31 09:28</b></div>
+                <div class="summary-row"><span>Closed By</span><b>Amy</b></div>
+                <div class="summary-row"><span>Closed At</span><b>2026-07-31 22:18</b></div>
+                <div class="summary-row"><span>Reviewed By</span><b>Manager Lee</b></div>
+              </div>
+            </div>
+            <div class="field"><label>Difference reason</label><textarea class="textarea">Stripe and cash differences reviewed. Submit EOD and lock business date.</textarea></div>
+          </div>
+          <div class="pos-bottom"><button class="btn" data-pos-route="pos-eod-refunds">Previous</button><button class="btn primary" id="submitEodBtn">Confirm End of Day</button></div>
+        </div>
+
+        <div class="pos-page" id="pos-closed">
+          <div class="pos-content">
+            <div class="metric-grid">
+              <div class="metric"><label>Store Status</label><strong>Closed</strong></div>
+              <div class="metric"><label>End of Day Result</label><strong>Completed</strong></div>
+              <div class="metric"><label>Business Date</label><strong style="font-size:18px">2026-07-31</strong></div>
+              <div class="metric"><label>Store Cash Inventory</label><strong id="closedInventory">$3,486.40</strong></div>
+            </div>
+            <div class="pos-card">
+              <div class="pos-card-head">Store Closed</div>
+              <div class="pos-card-body" style="padding:0">
+                <div class="summary-row"><span>Trading Lock</span><b><span class="tag green">Enabled</span></b></div>
+              </div>
+            </div>
+          </div>
+          <div class="pos-bottom"><button class="btn primary" data-pos-route="pos-business">Back to Business</button></div>
+        </div>
+
+        <div class="pos-page" id="pos-order-detail">
+          <div class="pos-content">
+            <div class="metric-grid">
+              <div class="metric"><label>Order No.</label><strong style="font-size:18px">SO-20260731-090</strong></div>
+              <div class="metric"><label>POS Serial No.</label><strong style="font-size:18px">POS-20260731-00090</strong></div>
+              <div class="metric"><label>Payment Channel</label><strong style="font-size:18px">Stripe</strong></div>
+              <div class="metric"><label>Order Status</label><strong style="font-size:18px">Paid</strong></div>
+            </div>
+            <div class="pos-card">
+              <div class="pos-card-head">Order Detail</div>
+              <div class="pos-card-body" style="padding:0">
+                <div class="summary-row"><span>Customer</span><b>Olivia Tan / +65 8123 7788</b></div>
+                <div class="summary-row"><span>Sales Staff</span><b>Amy</b></div>
+                <div class="summary-row"><span>PaymentIntent</span><b>pi_3Q9SG018</b></div>
+                <div class="summary-row"><span>Device ID</span><b>tmr_SG018_A</b></div>
+                <div class="summary-row"><span>POS Amount</span><b>$320.00</b></div>
+                <div class="summary-row"><span>Stripe Amount</span><b style="color:var(--orange)">$640.00</b></div>
+              </div>
+            </div>
+            <div class="pos-card">
+              <div class="pos-card-head">Items</div>
+              <div class="pos-card-body" style="padding:0">
+                <table>
+                  <thead><tr><th>SKU</th><th>Product</th><th>Size</th><th class="right">Qty</th><th class="right">Amount</th></tr></thead>
+                  <tbody>
+                    <tr><td>MWJ-BLK-07</td><td>Margot Mary-Jane</td><td>US 7</td><td class="right">1</td><td class="right">$139.00</td></tr>
+                    <tr><td>ARP-CRM-08</td><td>Aria Walker</td><td>US 8</td><td class="right">1</td><td class="right">$181.00</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="pos-bottom"><button class="btn primary" data-pos-route="pos-eod-stripe">Back to Stripe Review</button></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <main id="dmsApp" class="hidden">
+    <aside class="dms-side">
+      <div class="dms-logo">DMS</div>
+      <div class="dms-menu">
+        <div class="menu-title">基础设置</div>
+        <button data-dms-route="shop-list">门店列表</button>
+        <div class="menu-title">财务</div>
+        <button class="active" data-dms-route="store-eod-data">门店日结数据</button>
+        <button data-dms-route="deposit-slip">Deposit Slip</button>
+      </div>
+    </aside>
+    <section class="dms-main">
+      <div class="dms-header">
+        <b id="dmsHeaderTitle">门店日结数据</b>
+        <span style="color:var(--muted);font-size:13px">Tenant Admin · Singapore</span>
+      </div>
+      <div class="dms-tabs" id="dmsTabs"></div>
+
+      <div class="dms-view active" id="store-eod-data">
+        <div class="page-container">
+          <div class="search-box">
+            <div class="search-grid">
+              <div class="field"><label>门店</label><select class="select" id="eodShop"><option value="">全部门店</option><option selected>ION Orchard / SG018</option><option>Raffles City / SG021</option></select></div>
+              <div class="field"><label>业务日期</label><input class="input" id="eodDate" value="2026-07-31"></div>
+              <div class="field"><label>状态</label><select class="select" id="eodStatus"><option value="">全部</option><option selected>Closed</option><option>Open</option></select></div>
+              <button class="btn" id="resetEodBtn">重置</button>
+              <button class="btn primary" id="searchEodBtn">搜索</button>
+            </div>
+          </div>
+          <div class="operate-box">
+            <span style="color:var(--muted);font-size:13px">查看、导出门店日结汇总、现金交易明细和 Stripe 不匹配流水明细。</span>
+            <span>
+              <button class="btn primary" id="exportAllBtn">导出查询结果</button>
+            </span>
+          </div>
+          <div class="table-box">
+            <table>
+              <thead><tr><th>日结单号</th><th>门店</th><th>业务日期</th><th>状态</th><th class="right">现金账面</th><th class="right">实盘</th><th class="right">差异</th><th>操作</th></tr></thead>
+              <tbody id="eodTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="dms-view" id="deposit-slip">
+        <div class="page-container">
+          <div class="search-box">
+            <div class="search-grid">
+              <div class="field"><label>Store</label><select class="select"><option>ION Orchard / SG018</option></select></div>
+              <div class="field"><label>Status</label><select class="select"><option>Pending Approval</option><option>Approved</option></select></div>
+              <div class="field"><label>Deposit Slip No.</label><input class="input" value="DS-20260731-018"></div>
+              <button class="btn">Reset</button><button class="btn primary">Search</button>
+            </div>
+          </div>
+          <div class="table-box">
+            <table>
+              <thead><tr><th>Store Code</th><th>Store Name</th><th class="right">Store Cash Inventory</th><th class="right">Pending Audit Amount</th></tr></thead>
+              <tbody>
+                <tr><td>SG018</td><td>ION Orchard</td><td class="right" id="dmsInventory">$3,486.40</td><td class="right">$1,500.00</td></tr>
+                <tr><td>SG021</td><td>Raffles City</td><td class="right">$2,118.70</td><td class="right">$900.00</td></tr>
+                <tr><td>SG026</td><td>Marina Bay Sands</td><td class="right">$4,206.10</td><td class="right">$2,000.00</td></tr>
+                <tr><td>SG032</td><td>Jewel Changi</td><td class="right">$1,326.00</td><td class="right">$0.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-box">
+            <table>
+              <thead><tr><th>Deposit Slip No.</th><th>Store Code</th><th>Store Name</th><th class="right">Submitted Amount</th><th>Status</th><th>Inventory Impact</th><th>Action</th></tr></thead>
+              <tbody>
+                <tr><td>DS-20260731-018</td><td>SG018</td><td>ION Orchard</td><td class="right">$1,500.00</td><td id="slipStatus"><span class="tag orange">Pending Approval</span></td><td id="slipImpact">Not deducted yet</td><td><button class="btn primary" id="approveSlipBtn">Approve</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="dms-view" id="shop-list">
+        <div class="page-container">
+          <div class="search-box">
+            <div class="search-grid">
+              <div class="field"><label>门店名称</label><input class="input" value="ION Orchard"></div>
+              <div class="field"><label>门店编码</label><input class="input" value="SG018"></div>
+              <button class="btn">重置</button><button class="btn primary">搜索</button>
+            </div>
+          </div>
+          <div class="operate-box"><span></span><button class="btn primary" data-dms-route="edit-shop">新增门店</button></div>
+          <div class="table-box">
+            <table><thead><tr><th>门店编码</th><th>门店名称</th><th>国家</th><th>门店仓库</th><th>门店地址</th><th>支付方式</th><th>操作</th></tr></thead>
+              <tbody><tr><td>SG018</td><td>ION Orchard</td><td>Singapore</td><td>SG Retail WH</td><td>2 Orchard Turn</td><td>Cash, Stripe, Gift Card</td><td><span class="link" data-dms-route="edit-shop">编辑</span> <span class="link" data-dms-route="shop-detail">详情</span></td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <div class="dms-view" id="edit-shop">
+        <div class="form-box">
+          <div class="form-section-title">门店信息</div>
+          <div class="form-grid">
+            <div class="field"><label>门店名称</label><input class="input" value="ION Orchard"></div>
+            <div class="field"><label>门店编码</label><input class="input" value="SG018"></div>
+            <div class="field"><label>门店类型</label><select class="select"><option>直营门店</option></select></div>
+            <div class="field"><label>门店仓库</label><select class="select"><option>SG Retail WH</option></select></div>
+            <div class="field"><label>门店售价是否含税</label><select class="select"><option>是</option><option>否</option></select></div>
+            <div class="field"><label>订单金额取整规则</label><select class="select"><option>按币种默认规则</option></select></div>
+            <div class="field" style="grid-column:1/-1"><label>支付方式</label><div style="display:flex;gap:16px;flex-wrap:wrap"><label><input type="checkbox" checked> Cash</label><label><input type="checkbox" checked> Stripe</label><label><input type="checkbox" checked> Gift Card</label><label><input type="checkbox"> Offline</label></div></div>
+          </div>
+          <div class="form-section-title">日结配置</div>
+          <div class="form-grid">
+            <div class="field"><label>Float Amount</label><input class="input" value="500.00"></div>
+            <div class="field"><label>Difference Approval Limit</label><input class="input" value="20.00"></div>
+            <div class="field"><label>Close Reminder Time</label><input class="input" value="22:30"></div>
+            <div class="field"><label>Close Reminder Recipients</label><input class="input" value="ops.sg@vivaia.com; finance.sg@vivaia.com"></div>
+            <div class="field"><label>Difference Email Recipients</label><input class="input" value="store.manager@vivaia.com; finance.sg@vivaia.com"></div>
+            <div class="field"><label>Deposit Reminder Recipients</label><input class="input" value="deposit.sg@vivaia.com; finance.sg@vivaia.com"></div>
+            <div class="field"><label>Cash Inventory Alert Threshold</label><input class="input" value="3000.00"></div>
+            <div class="field"><label>Daily Report Reviewer Role</label><select class="select"><option>Store Manager</option><option>Finance</option></select></div>
+          </div>
+          <div class="form-section-title">现金面额配置</div>
+          <div class="table-box">
+            <table>
+              <thead><tr><th>Denomination</th><th>Type</th><th>Enabled</th><th>Display Order</th><th>Operation</th></tr></thead>
+              <tbody id="denomRows">
+                <tr><td>100</td><td>Bill</td><td>Yes</td><td>1</td><td><span class="link">Edit</span></td></tr>
+                <tr><td>50</td><td>Bill</td><td>Yes</td><td>2</td><td><span class="link">Edit</span></td></tr>
+                <tr><td>20</td><td>Bill</td><td>Yes</td><td>3</td><td><span class="link">Edit</span></td></tr>
+                <tr><td>10</td><td>Bill</td><td>Yes</td><td>4</td><td><span class="link">Edit</span></td></tr>
+                <tr><td>5</td><td>Bill</td><td>Yes</td><td>5</td><td><span class="link">Edit</span></td></tr>
+                <tr><td>1</td><td>Coin</td><td>Yes</td><td>6</td><td><span class="link">Edit</span> <span class="link delete-denom">Delete</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-bottom:16px"><button class="btn" id="addDenomBtn">Add Denomination</button></div>
+          <div style="display:flex;justify-content:flex-end;gap:10px"><button class="btn" data-dms-route="shop-list">取消</button><button class="btn primary" id="saveShopBtn">保存</button></div>
+        </div>
+      </div>
+
+      <div class="dms-view" id="shop-detail">
+        <div class="form-box">
+          <div class="operate-box" style="border:0;padding:0 0 12px"><b>门店详情 / SG018</b><button class="btn primary" data-dms-route="edit-shop">编辑</button></div>
+          <div class="metric-grid">
+            <div class="metric"><label>门店名称</label><strong style="font-size:18px">ION Orchard</strong></div>
+            <div class="metric"><label>支付方式</label><strong style="font-size:18px">Cash, Stripe</strong></div>
+            <div class="metric"><label>Float</label><strong>$500.00</strong></div>
+            <div class="metric"><label>Inventory Threshold</label><strong>$3,000.00</strong></div>
+          </div>
+          <div class="form-section-title">现金面额配置</div>
+          <div class="table-box">
+            <table>
+              <thead><tr><th>Denomination</th><th>Type</th><th>Enabled</th><th>Display Order</th></tr></thead>
+              <tbody>
+                <tr><td>100</td><td>Bill</td><td>Yes</td><td>1</td></tr>
+                <tr><td>50</td><td>Bill</td><td>Yes</td><td>2</td></tr>
+                <tr><td>20</td><td>Bill</td><td>Yes</td><td>3</td></tr>
+                <tr><td>10</td><td>Bill</td><td>Yes</td><td>4</td></tr>
+                <tr><td>5</td><td>Bill</td><td>Yes</td><td>5</td></tr>
+                <tr><td>1</td><td>Coin</td><td>Yes</td><td>6</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="drawer" id="eodDrawer">
+    <div class="drawer-head"><b id="drawerTitle">日结详情</b><button class="btn" id="closeDrawer">关闭</button></div>
+    <div class="drawer-body">
+      <div class="pos-card">
+        <div class="pos-card-head">日结数据汇总</div>
+        <div class="pos-card-body" style="padding:0">
+          <div class="summary-row"><span>Total Sales</span><b>$18,462.70</b></div>
+          <div class="summary-row"><span>Stripe</span><b>$12,804.20 / Difference $12.00</b></div>
+          <div class="summary-row"><span>Other Payments</span><b>$1,252.10 / Difference $0.00</b></div>
+          <div class="summary-row"><span>Opening Cash Amount</span><b>$520.00 / Difference $20.00</b></div>
+          <div class="summary-row"><span>Daily Cash Book Amount</span><b>$1,786.40 / Difference $12.40</b></div>
+          <div class="summary-row"><span>Counted Cash Balance</span><b>$1,780.00 / Variance -$6.40</b></div>
+          <div class="summary-row"><span>Float Amount</span><b>$500.00</b></div>
+          <div class="summary-row"><span>Daily Deposit Amount</span><b>$1,286.40</b></div>
+          <div class="summary-row"><span>After-sale Total</span><b>$214.00</b></div>
+          <div class="summary-row"><span>Opened By / Opened At</span><b>Amy / 2026-07-31 09:28</b></div>
+          <div class="summary-row"><span>Closed By / Closed At</span><b>Amy / 2026-07-31 22:18</b></div>
+          <div class="summary-row"><span>Reviewed By</span><b>Manager Lee</b></div>
+        </div>
+      </div>
+      <div class="pos-card">
+        <div class="pos-card-head"><span>现金交易明细</span><button class="btn" data-export="cash-details">导出现金明细</button></div>
+        <div class="pos-card-body" style="padding:0">
+          <table><thead><tr><th>时间</th><th>类型</th><th>单号/备注</th><th class="right">金额</th></tr></thead><tbody id="drawerCashRows"></tbody></table>
+        </div>
+      </div>
+      <div class="pos-card">
+        <div class="pos-card-head"><span>Stripe 不匹配流水明细</span><button class="btn" data-export="stripe-mismatch">导出 Stripe 不匹配</button></div>
+        <div class="pos-card-body" style="padding:0">
+          <table><thead><tr><th>Stripe No.</th><th>POS order No</th><th class="right">POS Amount</th><th class="right">Stripe Amount</th><th>原因</th></tr></thead><tbody id="drawerStripeRows"></tbody></table>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot"><button class="btn" data-export="eod-detail">导出详情</button><button class="btn primary" id="drawerOk">确定</button></div>
+  </aside>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const state = {
+      cashOpen: true,
+      inventoryVerified: false,
+      storeCashInventory: 3486.4,
+      cashBalance: 1786.4,
+      routeStack: ["pos-business"],
+      logs: [
+        { title: "Open Cash Management", operator: "Amy", note: "Opening float counted by Amy", amount: 500, at: "2026-07-31 09:28" },
+        { title: "Order Payment", operator: "Amy", note: "POS-SG018-10291 Cash", amount: 300, at: "2026-07-31 10:42" },
+        { title: "Order Payment", operator: "Amy", note: "POS-SG018-10298 Cash", amount: 128.6, at: "2026-07-31 14:16" },
+        { title: "Put Cash", operator: "Amy", note: "Customer changed payment to card", amount: 80, at: "2026-07-31 16:35" },
+        { title: "Take Out Cash", operator: "Amy", note: "Temporary cash drop", amount: -120, at: "2026-07-31 18:10" }
+      ],
+      eodRows: [
+        { no: "EOD-SG018-20260731", shop: "ION Orchard / SG018", date: "2026-07-31", status: "Closed", book: 1786.4, settlement: 1780, diff: -6.4, stripe: "Mismatch" }
+      ],
+      cashDetails: [
+        ["09:28", "Open", "Opening float", 500],
+        ["10:42", "Cash Payment", "POS-SG018-10291", 300],
+        ["14:16", "Cash Payment", "POS-SG018-10298", 128.6],
+        ["16:35", "Put Cash", "Customer changed payment", 80],
+        ["18:10", "Take Out", "Temporary cash drop", -120],
+        ["22:18", "Close", "Settlement counted", 1780]
+      ],
+      stripeMismatch: [
+        ["pi_3Q9SG018", "POS-SG018-10294", 278.64, 276.64, "Stripe amount less than POS order"],
+        ["pi_3Q9SG019", "POS-SG018-10301", 159.00, 0, "PaymentIntent missing capture"]
+      ]
+    };
+
+    const money = n => (n < 0 ? "-" : "") + "$" + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    const toast = (msg) => {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 1600);
+    };
+
+    function setApp(id) {
+      document.querySelectorAll(".switch-btn").forEach(b => b.classList.toggle("active", b.dataset.app === id));
+      document.getElementById("posApp").classList.toggle("hidden", id !== "posApp");
+      document.getElementById("dmsApp").classList.toggle("hidden", id !== "dmsApp");
+    }
+    document.querySelectorAll(".switch-btn").forEach(b => b.addEventListener("click", () => setApp(b.dataset.app)));
+
+    const posTitles = {
+      "pos-business": "Business",
+      "pos-sod": "Start of Day",
+      "pos-eod-stripe": "End of Day / Stripe Review",
+      "pos-eod-other": "End of Day / Other Payment Review",
+      "pos-eod-cash-count": "End of Day / Cash Count",
+      "pos-eod-refunds": "End of Day / Refund Review",
+      "pos-eod-closing": "End of Day / Closing Report",
+      "pos-closed": "Store Closed",
+      "pos-order-detail": "Order Detail"
+    };
+    function refreshInventoryPrivacy() {
+      const value = state.inventoryVerified ? money(state.storeCashInventory) : "••••••";
+      document.getElementById("businessCashInventory").textContent = value;
+      document.getElementById("inventoryHint").textContent = state.inventoryVerified ? "Verified" : "PIN required";
+      document.getElementById("verifyInventoryBtn").textContent = state.inventoryVerified ? "Verified" : "Verify PIN";
+      document.getElementById("verifyInventoryBtn").disabled = state.inventoryVerified;
+    }
+    function showPos(id, push = true) {
+      document.querySelectorAll(".pos-page").forEach(p => p.classList.toggle("active", p.id === id));
+      document.getElementById("posTitle").textContent = posTitles[id] || "POS";
+      document.getElementById("posBackBtn").classList.toggle("hidden", id === "pos-business");
+      if (push && state.routeStack[state.routeStack.length - 1] !== id) state.routeStack.push(id);
+      const businessRoutes = ["pos-business", "pos-sod", "pos-eod-stripe", "pos-eod-other", "pos-eod-cash-count", "pos-eod-refunds", "pos-eod-closing", "pos-closed", "pos-order-detail"];
+      document.querySelectorAll(".pos-nav button").forEach(b => b.classList.toggle("active", businessRoutes.includes(id) && b.dataset.posNav === "pos-business"));
+    }
+    document.querySelectorAll("[data-pos-route],[data-pos-nav]").forEach(el => {
+      el.addEventListener("click", () => {
+        if (el.dataset.confirmTarget) markConfirmed(el.dataset.confirmTarget);
+        showPos(el.dataset.posRoute || el.dataset.posNav);
+      });
+    });
+    document.querySelectorAll("[data-app]").forEach(el => {
+      if (!el.classList.contains("switch-btn")) el.addEventListener("click", () => setApp(el.dataset.app));
+    });
+    document.getElementById("posBackBtn").addEventListener("click", () => {
+      state.routeStack.pop();
+      showPos(state.routeStack[state.routeStack.length - 1] || "pos-business", false);
+    });
+    document.getElementById("verifyInventoryBtn").addEventListener("click", () => {
+      const pin = window.prompt("Enter manager PIN to view Store Cash Inventory");
+      if (pin === "1024") {
+        state.inventoryVerified = true;
+        refreshInventoryPrivacy();
+        toast("PIN verified");
+      } else if (pin !== null) {
+        toast("Invalid PIN");
+      }
+    });
+    function markConfirmed(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = "Confirmed";
+      el.className = "tag green";
+      toast("Marked confirmed");
+    }
+    document.querySelectorAll("[data-confirm-target]").forEach(button => {
+      if (!button.dataset.posRoute && !button.dataset.posNav) {
+        button.addEventListener("click", () => markConfirmed(button.dataset.confirmTarget));
+      }
+    });
+    function refreshCashCount() {
+      let total = 0;
+      document.querySelectorAll(".cash-denom").forEach(row => {
+        const denom = Number(row.dataset.denom || 0);
+        const count = Number(row.querySelector(".step-count")?.textContent || 0);
+        const amount = denom * count;
+        total += amount;
+        row.querySelector("strong").textContent = money(amount);
+      });
+      const variance = total - 1786.4;
+      document.getElementById("countedCashBalance").textContent = money(total);
+      document.getElementById("cashVariance").textContent = money(variance);
+    }
+    document.querySelectorAll(".cash-denom .step-btn").forEach(button => {
+      button.addEventListener("click", () => {
+        const row = button.closest(".cash-denom");
+        const countEl = row.querySelector(".step-count");
+        const next = Math.max(0, Number(countEl.textContent || 0) + Number(button.dataset.step || 0));
+        countEl.textContent = next;
+        refreshCashCount();
+      });
+    });
+
+    document.getElementById("confirmSodBtn").addEventListener("click", () => {
+      document.getElementById("businessStoreStatus").textContent = "Trading";
+      document.getElementById("sodStatusTag").textContent = "Completed";
+      document.getElementById("sodStatusTag").className = "tag green";
+      document.getElementById("eodStatusTag").textContent = "Ready";
+      document.getElementById("eodStatusTag").className = "tag orange";
+      toast("Start of Day completed. Trading unlocked.");
+      showPos("pos-business");
+    });
+    document.getElementById("submitEodBtn").addEventListener("click", () => {
+      document.getElementById("businessStoreStatus").textContent = "Closed";
+      document.getElementById("eodStatusTag").textContent = "Close Completed";
+      document.getElementById("eodStatusTag").className = "tag green";
+      state.eodRows[0].status = "Closed";
+      renderEodTable();
+      toast("End of Day submitted. Business date locked.");
+      showPos("pos-closed");
+    });
+
+    const dmsNames = {
+      "store-eod-data": "门店日结数据",
+      "deposit-slip": "Deposit Slip",
+      "shop-list": "门店列表",
+      "edit-shop": "编辑门店",
+      "shop-detail": "门店详情"
+    };
+    function renderTabs(active) {
+      const openTabs = ["store-eod-data", active].filter((v, i, a) => a.indexOf(v) === i);
+      document.getElementById("dmsTabs").innerHTML = openTabs.map(id => `<button class="dms-tab ${id === active ? "active" : ""}" data-dms-route="${id}">${dmsNames[id]}</button>`).join("");
+      document.querySelectorAll(".dms-tab").forEach(b => b.addEventListener("click", () => showDms(b.dataset.dmsRoute)));
+    }
+    function showDms(id) {
+      document.querySelectorAll(".dms-view").forEach(v => v.classList.toggle("active", v.id === id));
+      document.querySelectorAll("[data-dms-route]").forEach(b => b.classList.toggle("active", b.dataset.dmsRoute === id && b.tagName === "BUTTON" && b.closest(".dms-menu")));
+      document.getElementById("dmsHeaderTitle").textContent = dmsNames[id] || "DMS";
+      renderTabs(id);
+    }
+    document.querySelectorAll("[data-dms-route]").forEach(el => el.addEventListener("click", () => showDms(el.dataset.dmsRoute)));
+
+    function renderEodTable() {
+      document.getElementById("eodTableBody").innerHTML = state.eodRows.map(r => `<tr><td><span class="link" data-open-eod="${r.no}">${r.no}</span></td><td>${r.shop}</td><td>${r.date}</td><td><span class="tag green">${r.status}</span></td><td class="right">${money(r.book)}</td><td class="right">${money(r.settlement)}</td><td class="right" style="color:var(--red)">${money(r.diff)}</td><td><span class="link" data-open-eod="${r.no}">查看</span> <span class="link" data-export="${r.no}">导出</span></td></tr>`).join("");
+      document.querySelectorAll("[data-open-eod]").forEach(el => el.addEventListener("click", () => openEodDrawer(el.dataset.openEod)));
+      document.querySelectorAll("[data-export]").forEach(el => el.addEventListener("click", () => exportCsv(el.dataset.export || "export")));
+    }
+    function openEodDrawer(no) {
+      document.getElementById("drawerTitle").textContent = `日结详情 / ${no}`;
+      document.getElementById("drawerCashRows").innerHTML = state.cashDetails.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="right">${money(r[3])}</td></tr>`).join("");
+      document.getElementById("drawerStripeRows").innerHTML = state.stripeMismatch.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="right">${money(r[2])}</td><td class="right">${money(r[3])}</td><td>${r[4]}</td></tr>`).join("");
+      document.getElementById("eodDrawer").classList.add("show");
+    }
+    function exportCsv(type) {
+      const rows = [["type","store","businessDate","cashBook","settlement","difference"], [type, "SG018", "2026-07-31", "1786.40", "1780.00", "-6.40"]];
+      const csv = rows.map(r => r.join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${type}-2026-07-31.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast("已生成导出文件");
+    }
+    document.getElementById("closeDrawer").addEventListener("click", () => document.getElementById("eodDrawer").classList.remove("show"));
+    document.getElementById("drawerOk").addEventListener("click", () => document.getElementById("eodDrawer").classList.remove("show"));
+    document.getElementById("exportAllBtn").addEventListener("click", () => exportCsv("store-eod-query"));
+    document.querySelectorAll("[data-export]").forEach(el => el.addEventListener("click", () => exportCsv(el.dataset.export)));
+    document.getElementById("searchEodBtn").addEventListener("click", () => toast("查询完成"));
+    document.getElementById("resetEodBtn").addEventListener("click", () => { document.getElementById("eodDate").value = "2026-07-31"; toast("筛选已重置"); });
+    document.getElementById("saveShopBtn").addEventListener("click", () => { toast("门店配置已保存"); showDms("shop-detail"); });
+    document.getElementById("approveSlipBtn").addEventListener("click", () => {
+      document.getElementById("dmsInventory").textContent = "$1,986.40";
+      state.storeCashInventory = 1986.4;
+      refreshInventoryPrivacy();
+      document.getElementById("closedInventory").textContent = "$1,986.40";
+      document.getElementById("slipStatus").innerHTML = '<span class="tag green">Approved</span>';
+      document.getElementById("slipImpact").textContent = "Deducted from store cash inventory";
+      document.getElementById("approveSlipBtn").disabled = true;
+      document.getElementById("approveSlipBtn").textContent = "Approved";
+      toast("Deposit slip approved. Store cash inventory deducted.");
+    });
+    function bindDenomActions() {
+      document.querySelectorAll(".delete-denom").forEach(el => {
+        el.onclick = () => {
+          const row = el.closest("tr");
+          if (document.querySelectorAll("#denomRows tr").length > 1) row.remove();
+        };
+      });
+    }
+    bindDenomActions();
+    document.getElementById("addDenomBtn").addEventListener("click", () => {
+      const rows = document.querySelectorAll("#denomRows tr").length + 1;
+      document.getElementById("denomRows").insertAdjacentHTML("beforeend", `<tr><td>1</td><td>Coin</td><td>Yes</td><td>${rows}</td><td><span class="link">Edit</span> <span class="link delete-denom">Delete</span></td></tr>`);
+      bindDenomActions();
+    });
+
+    refreshCashCount();
+    renderEodTable();
+    renderTabs("store-eod-data");
+    refreshInventoryPrivacy();
+  </script>
+</body>
+</html>
