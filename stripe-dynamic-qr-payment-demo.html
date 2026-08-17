@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stripe Dynamic QR Payment Demo</title>
+  <style>
+    html { background: #f3f4f6; }
+    body { margin: 0; padding: 20px; }
+    @media (max-width: 640px) { body { padding: 0; } }
+  </style>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div id="stripe-dynamic-qr-demo">
+  <style>
+    #stripe-dynamic-qr-demo {
+      color-scheme: light dark;
+      --dq-ink: light-dark(#151515, #f5f5f5);
+      --dq-muted: light-dark(#707070, #aaa);
+      --dq-line: light-dark(#e7e7e7, #3b3b3b);
+      --dq-soft: light-dark(#f6f6f6, #252525);
+      --dq-panel: light-dark(#ffffff, #1b1b1b);
+      --dq-nav: light-dark(#14181f, #0d0f13);
+      --dq-blue: #2d99ff;
+      --dq-green: #1f9d62;
+      --dq-orange: #d97706;
+      --dq-red: #d14343;
+      color: var(--dq-ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      width: 100%;
+    }
+    #stripe-dynamic-qr-demo * { box-sizing: border-box; }
+    #stripe-dynamic-qr-demo button,
+    #stripe-dynamic-qr-demo input { font: inherit; }
+    #stripe-dynamic-qr-demo button { cursor: pointer; }
+    #stripe-dynamic-qr-demo .dq-shell {
+      min-height: 720px;
+      background: var(--dq-soft);
+      border: 1px solid var(--dq-line);
+      border-radius: 18px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      box-shadow: 0 16px 50px light-dark(rgba(0,0,0,.09), rgba(0,0,0,.32));
+    }
+    #stripe-dynamic-qr-demo .dq-sidebar {
+      background: var(--dq-nav);
+      color: #fff;
+      padding: 22px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    #stripe-dynamic-qr-demo .dq-brand { padding: 0 10px; display: flex; align-items: center; gap: 9px; }
+    #stripe-dynamic-qr-demo .dq-brand-mark { font-size: 24px; font-weight: 500; letter-spacing: 1px; }
+    #stripe-dynamic-qr-demo .dq-brand-sub { font-size: 11px; color: #9aa3af; }
+    #stripe-dynamic-qr-demo .dq-nav-list { display: grid; gap: 6px; }
+    #stripe-dynamic-qr-demo .dq-nav-btn {
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: #aeb5bf;
+      padding: 11px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+    }
+    #stripe-dynamic-qr-demo .dq-nav-btn.is-active { color: #fff; background: #282e38; }
+    #stripe-dynamic-qr-demo .dq-nav-btn svg { width: 17px; height: 17px; }
+    #stripe-dynamic-qr-demo .dq-side-foot { margin-top: auto; padding: 12px; border-top: 1px solid #303641; color: #8e98a5; font-size: 12px; line-height: 1.6; }
+    #stripe-dynamic-qr-demo .dq-workspace { min-width: 0; background: var(--dq-panel); }
+    #stripe-dynamic-qr-demo .dq-topbar {
+      height: 58px;
+      border-bottom: 1px solid var(--dq-line);
+      padding: 0 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    #stripe-dynamic-qr-demo .dq-title { font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-env { display: flex; align-items: center; gap: 9px; color: var(--dq-muted); font-size: 12px; }
+    #stripe-dynamic-qr-demo .dq-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dq-green); }
+    #stripe-dynamic-qr-demo .dq-view { display: none; padding: 22px; }
+    #stripe-dynamic-qr-demo .dq-view.is-active { display: block; }
+    #stripe-dynamic-qr-demo .dq-pos-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+    #stripe-dynamic-qr-demo .dq-tablet {
+      width: min(100%, 690px);
+      margin: 0 auto;
+      min-height: 610px;
+      border: 9px solid light-dark(#242424, #080808);
+      border-radius: 24px;
+      background: var(--dq-panel);
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 18px 42px light-dark(rgba(0,0,0,.14), rgba(0,0,0,.4));
+    }
+    #stripe-dynamic-qr-demo .dq-tablet-status { height: 25px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; font-size: 10px; background: var(--dq-panel); }
+    #stripe-dynamic-qr-demo .dq-screen { min-height: 567px; position: relative; background: var(--dq-panel); }
+    #stripe-dynamic-qr-demo .dq-screen-head { height: 54px; border-bottom: 1px solid var(--dq-line); display: grid; grid-template-columns: 52px 1fr 110px; align-items: center; padding: 0 7px; }
+    #stripe-dynamic-qr-demo .dq-icon-btn { border: 0; background: transparent; color: var(--dq-ink); width: 38px; height: 38px; border-radius: 50%; display: inline-grid; place-items: center; }
+    #stripe-dynamic-qr-demo .dq-icon-btn:hover { background: var(--dq-soft); }
+    #stripe-dynamic-qr-demo .dq-icon-btn svg { width: 20px; height: 20px; }
+    #stripe-dynamic-qr-demo .dq-screen-title { text-align: center; font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-unpaid { border: 0; background: transparent; color: var(--dq-blue); display: flex; gap: 7px; align-items: center; justify-self: end; font-size: 13px; }
+    #stripe-dynamic-qr-demo .dq-checkout-body { padding: 25px 18px 22px; }
+    #stripe-dynamic-qr-demo .dq-order-total { text-align: center; font-size: 18px; font-weight: 500; margin: 0 0 26px; }
+    #stripe-dynamic-qr-demo .dq-split { display: flex; align-items: center; gap: 13px; margin-bottom: 24px; }
+    #stripe-dynamic-qr-demo .dq-switch { width: 42px; height: 24px; border-radius: 20px; border: 0; background: #c9cdd2; padding: 3px; }
+    #stripe-dynamic-qr-demo .dq-switch span { display: block; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .2s; }
+    #stripe-dynamic-qr-demo .dq-switch[aria-pressed="true"] { background: var(--dq-ink); }
+    #stripe-dynamic-qr-demo .dq-switch[aria-pressed="true"] span { transform: translateX(18px); }
+    #stripe-dynamic-qr-demo .dq-amount-input { display: none; max-width: 160px; height: 38px; border: 1px solid var(--dq-line); border-radius: 8px; padding: 0 12px; background: var(--dq-panel); color: var(--dq-ink); }
+    #stripe-dynamic-qr-demo .dq-amount-input.is-open { display: block; }
+    #stripe-dynamic-qr-demo .dq-section-label { font-weight: 500; margin-bottom: 14px; }
+    #stripe-dynamic-qr-demo .dq-pay-list { display: grid; gap: 11px; }
+    #stripe-dynamic-qr-demo .dq-pay-option { min-height: 53px; width: 100%; border: 1px solid var(--dq-line); background: var(--dq-panel); color: var(--dq-ink); border-radius: 8px; padding: 0 15px; display: flex; align-items: center; gap: 11px; }
+    #stripe-dynamic-qr-demo .dq-pay-option:hover { border-color: var(--dq-ink); }
+    #stripe-dynamic-qr-demo .dq-pay-option svg { width: 26px; height: 26px; }
+    #stripe-dynamic-qr-demo .dq-pay-option .dq-chevron { margin-left: auto; width: 19px; height: 19px; }
+    #stripe-dynamic-qr-demo .dq-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.46); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10; }
+    #stripe-dynamic-qr-demo .dq-overlay.is-open { display: flex; }
+    #stripe-dynamic-qr-demo .dq-dialog { width: min(100%, 430px); background: var(--dq-panel); color: var(--dq-ink); border-radius: 15px; padding: 24px; box-shadow: 0 20px 55px rgba(0,0,0,.28); }
+    #stripe-dynamic-qr-demo .dq-dialog h3 { margin: 0 0 10px; font-size: 18px; font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-dialog p { margin: 0 0 20px; color: var(--dq-muted); line-height: 1.6; font-size: 13px; }
+    #stripe-dynamic-qr-demo .dq-alert-line { display: flex; gap: 12px; align-items: flex-start; }
+    #stripe-dynamic-qr-demo .dq-alert-icon { flex: 0 0 38px; height: 38px; border-radius: 50%; background: color-mix(in srgb, var(--dq-orange) 14%, transparent); color: var(--dq-orange); display: grid; place-items: center; }
+    #stripe-dynamic-qr-demo .dq-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #stripe-dynamic-qr-demo .dq-btn { min-height: 42px; border-radius: 8px; border: 1px solid var(--dq-line); background: var(--dq-panel); color: var(--dq-ink); padding: 0 15px; }
+    #stripe-dynamic-qr-demo .dq-btn-primary { background: var(--dq-ink); color: var(--dq-panel); border-color: var(--dq-ink); }
+    #stripe-dynamic-qr-demo .dq-spinner { width: 35px; height: 35px; border: 3px solid var(--dq-line); border-top-color: var(--dq-ink); border-radius: 50%; animation: dq-spin .8s linear infinite; margin: 0 auto 16px; }
+    @keyframes dq-spin { to { transform: rotate(360deg); } }
+    #stripe-dynamic-qr-demo .dq-qr-screen { display: none; min-height: 567px; }
+    #stripe-dynamic-qr-demo .dq-qr-screen.is-open { display: block; }
+    #stripe-dynamic-qr-demo .dq-qr-content { padding: 18px 20px 24px; display: grid; justify-items: center; }
+    #stripe-dynamic-qr-demo .dq-qr-order { color: var(--dq-muted); font-size: 12px; margin-top: 3px; }
+    #stripe-dynamic-qr-demo .dq-qr-amount { font-size: 28px; font-weight: 500; margin: 10px 0 8px; }
+    #stripe-dynamic-qr-demo .dq-qr-tip { color: var(--dq-muted); font-size: 13px; margin-bottom: 14px; }
+    #stripe-dynamic-qr-demo .dq-qr-box { width: 242px; height: 242px; padding: 13px; background: #fff; border: 1px solid #ececec; border-radius: 12px; display: grid; place-items: center; }
+    #stripe-dynamic-qr-demo .dq-qr-box canvas, #stripe-dynamic-qr-demo .dq-qr-box img { width: 214px !important; height: 214px !important; }
+    #stripe-dynamic-qr-demo .dq-qr-meta { margin-top: 13px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--dq-muted); }
+    #stripe-dynamic-qr-demo .dq-timer { color: var(--dq-orange); font-variant-numeric: tabular-nums; }
+    #stripe-dynamic-qr-demo .dq-qr-actions { width: min(100%, 430px); margin-top: 17px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #stripe-dynamic-qr-demo .dq-pay-state { margin-top: 13px; color: var(--dq-blue); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+    #stripe-dynamic-qr-demo .dq-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--dq-blue); box-shadow: 0 0 0 0 rgba(45,153,255,.5); animation: dq-pulse 1.5s infinite; }
+    @keyframes dq-pulse { 70% { box-shadow: 0 0 0 8px rgba(45,153,255,0); } 100% { box-shadow: 0 0 0 0 rgba(45,153,255,0); } }
+    #stripe-dynamic-qr-demo .dq-success { display: none; min-height: 567px; align-items: center; justify-content: center; text-align: center; padding: 30px; }
+    #stripe-dynamic-qr-demo .dq-success.is-open { display: flex; }
+    #stripe-dynamic-qr-demo .dq-success-mark { width: 68px; height: 68px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 18px; background: color-mix(in srgb, var(--dq-green) 13%, transparent); color: var(--dq-green); }
+    #stripe-dynamic-qr-demo .dq-success h2 { margin: 0 0 8px; font-size: 24px; font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-success p { margin: 0 0 22px; color: var(--dq-muted); }
+    #stripe-dynamic-qr-demo .dq-inspector { border-left: 1px solid var(--dq-line); padding-left: 20px; }
+    #stripe-dynamic-qr-demo .dq-inspector h3 { margin: 0 0 14px; font-size: 14px; font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-flow { display: grid; gap: 0; }
+    #stripe-dynamic-qr-demo .dq-flow-step { position: relative; padding: 0 0 19px 29px; color: var(--dq-muted); font-size: 12px; line-height: 1.45; }
+    #stripe-dynamic-qr-demo .dq-flow-step::before { content: ""; position: absolute; left: 7px; top: 15px; bottom: 0; border-left: 1px solid var(--dq-line); }
+    #stripe-dynamic-qr-demo .dq-flow-step:last-child::before { display: none; }
+    #stripe-dynamic-qr-demo .dq-flow-dot { position: absolute; left: 0; top: 1px; width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--dq-line); background: var(--dq-panel); }
+    #stripe-dynamic-qr-demo .dq-flow-step.is-current { color: var(--dq-ink); }
+    #stripe-dynamic-qr-demo .dq-flow-step.is-current .dq-flow-dot { border-color: var(--dq-blue); box-shadow: inset 0 0 0 3px var(--dq-panel); background: var(--dq-blue); }
+    #stripe-dynamic-qr-demo .dq-flow-step.is-done .dq-flow-dot { border-color: var(--dq-green); background: var(--dq-green); }
+    #stripe-dynamic-qr-demo .dq-flow-step strong { display: block; color: var(--dq-ink); font-weight: 500; margin-bottom: 3px; }
+    #stripe-dynamic-qr-demo .dq-note { margin-top: 8px; padding: 12px; background: var(--dq-soft); border-radius: 9px; color: var(--dq-muted); font-size: 11px; line-height: 1.6; }
+    #stripe-dynamic-qr-demo .dq-simulate { width: 100%; margin-top: 13px; }
+    #stripe-dynamic-qr-demo .dq-arch-head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 20px; }
+    #stripe-dynamic-qr-demo .dq-arch-head h2 { margin: 0 0 6px; font-size: 22px; font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-arch-head p { margin: 0; color: var(--dq-muted); font-size: 13px; line-height: 1.6; }
+    #stripe-dynamic-qr-demo .dq-recommend { flex: 0 0 auto; color: var(--dq-green); background: color-mix(in srgb, var(--dq-green) 10%, transparent); padding: 7px 10px; border-radius: 999px; font-size: 12px; }
+    #stripe-dynamic-qr-demo .dq-arch-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; align-items: stretch; }
+    #stripe-dynamic-qr-demo .dq-arch-node { border: 1px solid var(--dq-line); border-radius: 11px; padding: 15px; min-height: 135px; position: relative; }
+    #stripe-dynamic-qr-demo .dq-arch-node h3 { margin: 0 0 8px; font-size: 14px; font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-arch-node p { margin: 0; color: var(--dq-muted); font-size: 12px; line-height: 1.55; }
+    #stripe-dynamic-qr-demo .dq-node-tag { display: inline-block; margin-top: 10px; font-size: 10px; color: var(--dq-blue); }
+    #stripe-dynamic-qr-demo .dq-arrow { position: absolute; right: -20px; top: 57px; z-index: 2; color: var(--dq-muted); }
+    #stripe-dynamic-qr-demo .dq-decision { margin: 20px 0; padding: 15px 17px; border-left: 3px solid var(--dq-blue); background: var(--dq-soft); font-size: 13px; line-height: 1.7; }
+    #stripe-dynamic-qr-demo .dq-contracts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    #stripe-dynamic-qr-demo .dq-contract h3 { font-size: 14px; font-weight: 500; margin: 0 0 11px; }
+    #stripe-dynamic-qr-demo .dq-code { background: light-dark(#171a20, #090b0e); color: #e8eaed; border-radius: 10px; padding: 14px; font: 11px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 184px; }
+    #stripe-dynamic-qr-demo .dq-table-wrap { overflow-x: auto; }
+    #stripe-dynamic-qr-demo table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    #stripe-dynamic-qr-demo th, #stripe-dynamic-qr-demo td { text-align: left; padding: 11px 9px; border-bottom: 1px solid var(--dq-line); vertical-align: top; }
+    #stripe-dynamic-qr-demo th { color: var(--dq-muted); font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-status { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    #stripe-dynamic-qr-demo .dq-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dq-green); }
+    #stripe-dynamic-qr-demo .dq-docs { margin-top: 20px; }
+    #stripe-dynamic-qr-demo .dq-docs h3 { font-size: 14px; margin: 0 0 10px; font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-doc-links { display: flex; gap: 8px; flex-wrap: wrap; }
+    #stripe-dynamic-qr-demo .dq-doc-links a { color: var(--dq-blue); text-decoration: none; border: 1px solid var(--dq-line); border-radius: 8px; padding: 8px 10px; font-size: 11px; }
+    #stripe-dynamic-qr-demo .dq-admin-head { display: flex; justify-content: space-between; gap: 15px; align-items: center; margin-bottom: 18px; }
+    #stripe-dynamic-qr-demo .dq-admin-head h2 { margin: 0; font-size: 20px; font-weight: 500; }
+    #stripe-dynamic-qr-demo .dq-filters { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 15px; }
+    #stripe-dynamic-qr-demo .dq-filter { border: 1px solid var(--dq-line); border-radius: 8px; height: 38px; padding: 0 11px; background: var(--dq-panel); color: var(--dq-muted); display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+    #stripe-dynamic-qr-demo .dq-admin-callout { margin-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    #stripe-dynamic-qr-demo .dq-mini { padding: 13px; border: 1px solid var(--dq-line); border-radius: 9px; }
+    #stripe-dynamic-qr-demo .dq-mini span { display: block; color: var(--dq-muted); font-size: 11px; margin-bottom: 6px; }
+    #stripe-dynamic-qr-demo .dq-mini strong { font-weight: 500; font-size: 16px; }
+    @media (max-width: 900px) {
+      #stripe-dynamic-qr-demo .dq-shell { grid-template-columns: 72px minmax(0,1fr); }
+      #stripe-dynamic-qr-demo .dq-sidebar { padding: 18px 9px; }
+      #stripe-dynamic-qr-demo .dq-brand-sub, #stripe-dynamic-qr-demo .dq-nav-btn span, #stripe-dynamic-qr-demo .dq-side-foot { display: none; }
+      #stripe-dynamic-qr-demo .dq-brand { justify-content: center; padding: 0; }
+      #stripe-dynamic-qr-demo .dq-nav-btn { justify-content: center; padding: 11px; }
+      #stripe-dynamic-qr-demo .dq-pos-layout { grid-template-columns: 1fr; }
+      #stripe-dynamic-qr-demo .dq-inspector { border-left: 0; border-top: 1px solid var(--dq-line); padding: 18px 0 0; }
+      #stripe-dynamic-qr-demo .dq-flow { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      #stripe-dynamic-qr-demo .dq-flow-step { padding: 23px 6px 5px 0; }
+      #stripe-dynamic-qr-demo .dq-flow-step::before { left: 15px; top: 7px; right: -8px; bottom: auto; border-left: 0; border-top: 1px solid var(--dq-line); }
+      #stripe-dynamic-qr-demo .dq-flow-dot { left: 8px; top: 0; }
+      #stripe-dynamic-qr-demo .dq-arch-grid { grid-template-columns: 1fr 1fr; }
+      #stripe-dynamic-qr-demo .dq-arrow { display: none; }
+    }
+    @media (max-width: 640px) {
+      #stripe-dynamic-qr-demo .dq-shell { min-height: auto; grid-template-columns: 1fr; }
+      #stripe-dynamic-qr-demo .dq-sidebar { flex-direction: row; align-items: center; gap: 10px; padding: 10px; }
+      #stripe-dynamic-qr-demo .dq-brand { margin-right: auto; }
+      #stripe-dynamic-qr-demo .dq-nav-list { display: flex; }
+      #stripe-dynamic-qr-demo .dq-view { padding: 12px; }
+      #stripe-dynamic-qr-demo .dq-topbar { padding: 0 14px; }
+      #stripe-dynamic-qr-demo .dq-tablet { border-width: 6px; border-radius: 18px; }
+      #stripe-dynamic-qr-demo .dq-dialog-actions, #stripe-dynamic-qr-demo .dq-qr-actions { grid-template-columns: 1fr; }
+      #stripe-dynamic-qr-demo .dq-arch-grid, #stripe-dynamic-qr-demo .dq-contracts, #stripe-dynamic-qr-demo .dq-filters, #stripe-dynamic-qr-demo .dq-admin-callout { grid-template-columns: 1fr; }
+      #stripe-dynamic-qr-demo .dq-arch-head { display: block; }
+      #stripe-dynamic-qr-demo .dq-recommend { display: inline-block; margin-top: 10px; }
+    }
+  </style>
+
+  <div class="dq-shell">
+    <aside class="dq-sidebar" aria-label="Solution navigation">
+      <div class="dq-brand"><div class="dq-brand-mark">VIVAIA</div><div class="dq-brand-sub">POS payment lab</div></div>
+      <nav class="dq-nav-list">
+        <button class="dq-nav-btn is-active" type="button" data-view="pos"><i data-lucide="tablet-smartphone" aria-hidden="true"></i><span>POS Flow</span></button>
+        <button class="dq-nav-btn" type="button" data-view="architecture"><i data-lucide="workflow" aria-hidden="true"></i><span>Architecture</span></button>
+        <button class="dq-nav-btn" type="button" data-view="admin"><i data-lucide="monitor-cog" aria-hidden="true"></i><span>Admin</span></button>
+      </nav>
+      <div class="dq-side-foot">Designed from current<br>master / master / main</div>
+    </aside>
+
+    <main class="dq-workspace">
+      <header class="dq-topbar">
+        <div class="dq-title" id="dq-page-title">Dynamic QR Payment · POS Flow</div>
+        <div class="dq-env"><span class="dq-dot"></span>Stripe test mode · USD</div>
+      </header>
+
+      <section class="dq-view is-active" data-page="pos">
+        <div class="dq-pos-layout">
+          <div class="dq-tablet" aria-label="POS Android payment flow simulation">
+            <div class="dq-tablet-status"><span>10:28</span><span>VIVAIA POS&nbsp;&nbsp; Wi-Fi 82%</span></div>
+            <div class="dq-screen" id="dq-checkout-screen">
+              <div class="dq-screen-head">
+                <button class="dq-icon-btn" type="button" aria-label="Close"><i data-lucide="x"></i></button>
+                <div class="dq-screen-title">Checkout</div>
+                <button class="dq-unpaid" type="button"><i data-lucide="bookmark-x" aria-hidden="true"></i> Mark unpaid</button>
+              </div>
+              <div class="dq-checkout-body">
+                <p class="dq-order-total">Processing payment for order #USA-V002-01842 total $<span class="dq-display-amount">128.00</span></p>
+                <div class="dq-split">
+                  <strong>Split payment</strong>
+                  <button class="dq-switch" id="dq-split-switch" type="button" role="switch" aria-pressed="false" aria-label="Split payment"><span></span></button>
+                  <input class="dq-amount-input" id="dq-amount-input" inputmode="decimal" value="128.00" aria-label="Payment amount">
+                </div>
+                <div class="dq-section-label">Please select a payment method</div>
+                <div class="dq-pay-list">
+                  <button class="dq-pay-option" type="button"><i data-lucide="credit-card" aria-hidden="true"></i><span>Credit / Debit card</span><i class="dq-chevron" data-lucide="chevron-right" aria-hidden="true"></i></button>
+                  <button class="dq-pay-option" id="dq-stripe-qr" type="button"><i data-lucide="qr-code" aria-hidden="true"></i><span>Stripe QR</span><i class="dq-chevron" data-lucide="chevron-right" aria-hidden="true"></i></button>
+                  <button class="dq-pay-option" type="button"><i data-lucide="contactless" aria-hidden="true"></i><span>MOTO pay</span><i class="dq-chevron" data-lucide="chevron-right" aria-hidden="true"></i></button>
+                  <button class="dq-pay-option" type="button"><i data-lucide="wallet-cards" aria-hidden="true"></i><span>Local POS payment</span><i class="dq-chevron" data-lucide="chevron-right" aria-hidden="true"></i></button>
+                  <button class="dq-pay-option" type="button"><i data-lucide="banknote" aria-hidden="true"></i><span>Cash payment</span><i class="dq-chevron" data-lucide="chevron-right" aria-hidden="true"></i></button>
+                </div>
+              </div>
+
+              <div class="dq-overlay" id="dq-generating-overlay">
+                <div class="dq-dialog" style="text-align:center">
+                  <div class="dq-spinner"></div>
+                  <h3>Generating Stripe QR…</h3>
+                  <p>Creating a dedicated Stripe Checkout Session for this order.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="dq-qr-screen" id="dq-qr-screen">
+              <div class="dq-screen-head">
+                <button class="dq-icon-btn" id="dq-back-checkout" type="button" aria-label="Back"><i data-lucide="arrow-left"></i></button>
+                <div class="dq-screen-title">Scan to pay</div>
+                <div></div>
+              </div>
+              <div class="dq-qr-content">
+                <div class="dq-qr-order">Order #USA-V002-01842</div>
+                <div class="dq-qr-amount">$<span class="dq-display-amount">128.00</span></div>
+                <div class="dq-qr-tip">Please scan this QR code with your phone to complete your payment.</div>
+                <div class="dq-qr-box" id="dq-qr-box" aria-label="Stripe Checkout payment QR code"></div>
+                <div class="dq-qr-meta"><span>Secure payment powered by Stripe</span><span>·</span><span class="dq-timer" id="dq-timer">05:00</span></div>
+                <div class="dq-pay-state"><span class="dq-pulse"></span><span id="dq-waiting-label">We'll confirm your payment here automatically.</span></div>
+              </div>
+            </div>
+
+            <div class="dq-success" id="dq-success-screen">
+              <div>
+                <div class="dq-success-mark"><i data-lucide="check" aria-hidden="true"></i></div>
+                <h2>Thank you!</h2>
+                <p>Your payment of $<span class="dq-display-amount">128.00</span> was successful.<br>Order #USA-V002-01842</p>
+                <button class="dq-btn dq-btn-primary" id="dq-new-payment" type="button">Done</button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="dq-inspector">
+            <h3>Live payment flow</h3>
+            <div class="dq-flow" id="dq-flow">
+              <div class="dq-flow-step is-current" data-step="0"><span class="dq-flow-dot"></span><strong>1. Clerk identifies disconnection</strong>The clerk determines that the Terminal is unavailable</div>
+              <div class="dq-flow-step" data-step="1"><span class="dq-flow-dot"></span><strong>2. Select Stripe QR</strong>Choose Stripe QR directly from the payment methods</div>
+              <div class="dq-flow-step" data-step="2"><span class="dq-flow-dot"></span><strong>3. Create Checkout Session</strong>The backend locks the order amount and returns a URL</div>
+              <div class="dq-flow-step" data-step="3"><span class="dq-flow-dot"></span><strong>4. Display payment QR</strong>The POS encodes the Stripe Checkout URL as a QR code</div>
+              <div class="dq-flow-step" data-step="4"><span class="dq-flow-dot"></span><strong>5. Customer scans and pays</strong>The webhook verifies and updates the payment idempotently</div>
+              <div class="dq-flow-step" data-step="5"><span class="dq-flow-dot"></span><strong>6. POS shows success</strong>Order polling leads into the existing success screen</div>
+            </div>
+            <button class="dq-btn dq-btn-primary dq-simulate" id="dq-simulate-paid" type="button" disabled>Simulate successful customer payment</button>
+            <div class="dq-note">Key rule: amount, currency, and order ownership are read by the backend. The POS never supplies a trusted final amount. Webhooks confirm payment; POS polling only refreshes the user experience.</div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="dq-view" data-page="architecture">
+        <div class="dq-arch-head">
+          <div><h2>Recommendation: use Stripe Checkout Sessions</h2><p>Create an order-specific Session for every payment attempt. Stripe returns a hosted Checkout URL, which the POS encodes as a QR code.</p></div>
+          <div class="dq-recommend">Recommended</div>
+        </div>
+        <div class="dq-arch-grid">
+          <div class="dq-arch-node"><h3>POS Android</h3><p>Provides Stripe QR as a standalone payment method. The clerk selects it when the Terminal is unavailable.</p><span class="dq-node-tag">Compose Multiplatform</span><span class="dq-arrow">→</span></div>
+          <div class="dq-arch-node"><h3>DMS Backend</h3><p>Validates the order, unpaid amount, and store; creates a Session using the tenant Stripe API key.</p><span class="dq-node-tag">Spring + Feign</span><span class="dq-arrow">→</span></div>
+          <div class="dq-arch-node"><h3>Stripe Checkout</h3><p>The hosted page handles cards, Apple Pay, Google Pay, 3DS, and produces a PaymentIntent.</p><span class="dq-node-tag">Hosted UI</span><span class="dq-arrow">→</span></div>
+          <div class="dq-arch-node"><h3>Webhook + Order</h3><p>Handles completed or asynchronous success events and writes the transaction idempotently.</p><span class="dq-node-tag">Source of truth</span></div>
+        </div>
+        <div class="dq-decision"><strong>Why not reuse a Payment Link:</strong> a reusable store-level link cannot reliably bind the amount to one order. Checkout Sessions provide one URL per payment attempt and support metadata, expires_at, payment_status, and PaymentIntent reconciliation.</div>
+        <div class="dq-contracts">
+          <div class="dq-contract">
+            <h3>Proposed backend endpoint</h3>
+            <div class="dq-code">POST /pos/support/stripe/checkout-sessions
+{
+  "orderId": 1842,
+  "amount": "128.00"  // consistency check only
+}
+
+200
+{
+  "attemptId": 90531,
+  "sessionId": "cs_test_...",
+  "checkoutUrl": "https://checkout.stripe.com/c/pay/cs_test_...",
+  "expiresAt": "2026-08-17T10:33:00+08:00",
+  "orderStatus": "UNPAID"
+}</div>
+          </div>
+          <div class="dq-contract">
+            <h3>Core Stripe request parameters</h3>
+            <div class="dq-code">mode=payment
+line_items[0][price_data][currency]=usd
+line_items[0][price_data][unit_amount]=12800
+line_items[0][price_data][product_data][name]=POS Order USA-V002-01842
+line_items[0][quantity]=1
+client_reference_id=1842
+metadata[orderID]=1842
+metadata[orderNo]=USA-V002-01842
+metadata[shopId]=...
+payment_intent_data[metadata][orderID]=1842
+expires_at=now+30m
+success_url=https://.../stripe/checkout/result?session_id={CHECKOUT_SESSION_ID}</div>
+          </div>
+        </div>
+        <div class="dq-table-wrap" style="margin-top:20px">
+          <table>
+            <thead><tr><th>Module</th><th>Existing capability</th><th>Proposed addition</th><th>Key constraint</th></tr></thead>
+            <tbody>
+              <tr><td>StripeApiClient</td><td>Tenant API key, Feign form requests, error decoding</td><td>Create, retrieve, and expire Checkout Sessions</td><td>Add an Idempotency-Key to creation requests</td></tr>
+              <tr><td>Order payment</td><td>cashlessPaid, PaymentGatewayFactory, transactions, PaidEvent</td><td>CheckoutSessionPaymentService and payment-attempt records</td><td>Retrieve the Session again and verify amount, currency, and metadata</td></tr>
+              <tr><td>POS App</td><td>Payment selection, order status refresh, payment success screen</td><td>Stripe QR method, Stripe API endpoint, and QR component</td><td>The clerk selects it manually; it does not depend on autoConnect</td></tr>
+              <tr><td>Admin Web</td><td>Transactions, order details, channel and method fields</td><td>checkout_qr source and Session or attempt status</td><td>Never expose the API key; show only auditable identifiers</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dq-docs">
+          <h3>Official Stripe documentation</h3>
+          <div class="dq-doc-links">
+            <a href="https://docs.stripe.com/api/checkout/sessions/create" target="_blank" rel="noreferrer">Create Checkout Session</a>
+            <a href="https://docs.stripe.com/api/checkout/sessions/object" target="_blank" rel="noreferrer">Checkout Session object</a>
+            <a href="https://docs.stripe.com/checkout/fulfillment" target="_blank" rel="noreferrer">Fulfill orders & webhooks</a>
+            <a href="https://docs.stripe.com/webhooks" target="_blank" rel="noreferrer">Webhook security</a>
+            <a href="https://docs.stripe.com/api/idempotent_requests" target="_blank" rel="noreferrer">Idempotent requests</a>
+            <a href="https://docs.stripe.com/api/checkout/sessions/expire" target="_blank" rel="noreferrer">Expire a Session</a>
+            <a href="https://docs.stripe.com/no-code/payment-links" target="_blank" rel="noreferrer">Payment Links & QR</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="dq-view" data-page="admin">
+        <div class="dq-admin-head"><div><h2>Transactions · Dynamic QR payment monitoring</h2><div style="color:var(--dq-muted);font-size:12px;margin-top:6px">Extends the current Element Plus transaction table</div></div><button class="dq-btn dq-btn-primary" type="button">Export</button></div>
+        <div class="dq-filters">
+          <div class="dq-filter"><span>Order number</span><i data-lucide="search"></i></div>
+          <div class="dq-filter"><span>Channel: Stripe</span><i data-lucide="chevron-down"></i></div>
+          <div class="dq-filter"><span>Method: Card</span><i data-lucide="chevron-down"></i></div>
+          <div class="dq-filter"><span>Source: Checkout QR</span><i data-lucide="chevron-down"></i></div>
+        </div>
+        <div class="dq-table-wrap">
+          <table>
+            <thead><tr><th>Transaction time</th><th>Order number</th><th>Type</th><th>Channel</th><th>Method</th><th>Source</th><th>Stripe ID</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>2026-08-17 10:28:42</td><td>USA-V002-01842</td><td>Payment</td><td>stripe</td><td>card</td><td>checkout_qr</td><td>pi_3R…a82</td><td>USD 128.00</td><td><span class="dq-status">Paid</span></td></tr>
+              <tr><td>2026-08-17 09:43:16</td><td>USA-V003-02109</td><td>Payment</td><td>stripe</td><td>card_present</td><td>terminal</td><td>pi_3R…c11</td><td>USD 89.00</td><td><span class="dq-status">Paid</span></td></tr>
+              <tr><td>2026-08-17 09:10:03</td><td>USA-V002-01831</td><td>Payment</td><td>stripe</td><td>apple_pay</td><td>checkout_qr</td><td>pi_3R…b37</td><td>USD 216.00</td><td><span class="dq-status">Paid</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="dq-admin-callout">
+          <div class="dq-mini"><span>QR payments today</span><strong>18</strong></div>
+          <div class="dq-mini"><span>QR payment volume</span><strong>USD 2,436.00</strong></div>
+          <div class="dq-mini"><span>Average confirmation time</span><strong>23s</strong></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    (function () {
+      const root = document.getElementById('stripe-dynamic-qr-demo');
+      const navButtons = root.querySelectorAll('.dq-nav-btn');
+      const views = root.querySelectorAll('.dq-view');
+      const title = root.querySelector('#dq-page-title');
+      const titles = { pos: 'Dynamic QR Payment · POS Flow', architecture: 'Dynamic QR Payment · Architecture', admin: 'Dynamic QR Payment · Admin' };
+      navButtons.forEach((button) => button.addEventListener('click', () => {
+        const view = button.dataset.view;
+        navButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+        views.forEach((item) => item.classList.toggle('is-active', item.dataset.page === view));
+        title.textContent = titles[view];
+      }));
+
+      const splitSwitch = root.querySelector('#dq-split-switch');
+      const amountInput = root.querySelector('#dq-amount-input');
+      const displayAmounts = root.querySelectorAll('.dq-display-amount');
+      const setAmount = () => {
+        const value = Number(amountInput.value);
+        const amount = Number.isFinite(value) && value > 0 ? Math.min(value, 128).toFixed(2) : '128.00';
+        displayAmounts.forEach((node) => node.textContent = amount);
+      };
+      splitSwitch.addEventListener('click', () => {
+        const active = splitSwitch.getAttribute('aria-pressed') !== 'true';
+        splitSwitch.setAttribute('aria-pressed', String(active));
+        amountInput.classList.toggle('is-open', active);
+        if (!active) { amountInput.value = '128.00'; setAmount(); }
+      });
+      amountInput.addEventListener('input', setAmount);
+
+      const checkoutScreen = root.querySelector('#dq-checkout-screen');
+      const qrScreen = root.querySelector('#dq-qr-screen');
+      const successScreen = root.querySelector('#dq-success-screen');
+      const generating = root.querySelector('#dq-generating-overlay');
+      const simulatePaid = root.querySelector('#dq-simulate-paid');
+      const timerLabel = root.querySelector('#dq-timer');
+      const waitingLabel = root.querySelector('#dq-waiting-label');
+      const flowSteps = Array.from(root.querySelectorAll('.dq-flow-step'));
+      let timer = null;
+      let seconds = 300;
+      let qrNonce = 1;
+
+      function setFlow(index) {
+        flowSteps.forEach((step, i) => {
+          step.classList.toggle('is-done', i < index);
+          step.classList.toggle('is-current', i === index);
+        });
+      }
+
+      function renderQr() {
+        const box = root.querySelector('#dq-qr-box');
+        box.innerHTML = '';
+        const amount = root.querySelector('.dq-display-amount').textContent;
+        const url = 'https://checkout.stripe.com/c/pay/cs_test_pos_demo_' + qrNonce + '?order=USA-V002-01842&amount=' + amount;
+        if (window.QRCode) {
+          new QRCode(box, { text: url, width: 214, height: 214, colorDark: '#111111', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+        } else {
+          box.textContent = url;
+        }
+        box.dataset.url = url;
+      }
+
+      function startTimer() {
+        window.clearInterval(timer);
+        seconds = 300;
+        timerLabel.textContent = '05:00';
+        timer = window.setInterval(() => {
+          seconds -= 1;
+          const min = String(Math.floor(seconds / 60)).padStart(2, '0');
+          const sec = String(seconds % 60).padStart(2, '0');
+          timerLabel.textContent = min + ':' + sec;
+          if (seconds <= 0) {
+            window.clearInterval(timer);
+            waitingLabel.textContent = 'This QR code has expired. Please ask a team member for a new one.';
+            simulatePaid.disabled = true;
+          }
+        }, 1000);
+      }
+
+      root.querySelector('#dq-stripe-qr').addEventListener('click', () => {
+        setFlow(1);
+        generating.classList.add('is-open');
+        window.setTimeout(() => {
+          setFlow(2);
+          generating.classList.remove('is-open');
+          checkoutScreen.style.display = 'none';
+          qrScreen.classList.add('is-open');
+          setFlow(3);
+          renderQr();
+          startTimer();
+          simulatePaid.disabled = false;
+        }, 380);
+      });
+
+      function resetDemo() {
+        window.clearInterval(timer);
+        checkoutScreen.style.display = 'block';
+        qrScreen.classList.remove('is-open');
+        successScreen.classList.remove('is-open');
+        generating.classList.remove('is-open');
+        simulatePaid.disabled = true;
+        waitingLabel.textContent = "We'll confirm your payment here automatically.";
+        setFlow(0);
+      }
+
+      root.querySelector('#dq-back-checkout').addEventListener('click', resetDemo);
+      root.querySelector('#dq-new-payment').addEventListener('click', resetDemo);
+      simulatePaid.addEventListener('click', () => {
+        window.clearInterval(timer);
+        simulatePaid.disabled = true;
+        waitingLabel.textContent = 'Thank you — your payment has been confirmed.';
+        setFlow(4);
+        window.setTimeout(() => {
+          qrScreen.classList.remove('is-open');
+          successScreen.classList.add('is-open');
+          setFlow(5);
+        }, 750);
+      });
+
+      if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+    })();
+  </script>
+</div>
+
+</body>
+</html>
+
